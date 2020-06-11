@@ -1,0 +1,8 @@
+sklearn
+keras
+pickle-mixin
+pandas
+numpy
+opencv-python
+django
+mtcnn
