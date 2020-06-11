@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  {% load static %}
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <title>Document</title>
+  <link rel="stylesheet" href="{% static 'css/css/styles.css' %}">
+  <script src="{% static 'face-api.min.js'%}"></script>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    canvas {
+      position: absolute;
+    }
+  </style>
+</head>
+<body>
+  <video id="video" width="720" height="560" autoplay muted></video>
+
+<script>
+const video = document.getElementById("video");
+let predictedAges = [];
+
+Promise.all([
+  faceapi.nets.tinyFaceDetector.loadFromUri("/static/models"),
+  faceapi.nets.faceLandmark68Net.loadFromUri("/static/models"),
+  faceapi.nets.faceRecognitionNet.loadFromUri("/static/models"),
+  faceapi.nets.faceExpressionNet.loadFromUri("/static/models"),
+  faceapi.nets.ageGenderNet.loadFromUri("/static/models")
+]).then(startVideo);
+
+function startVideo() {
+  navigator.getUserMedia(
+    { video: {} },
+    stream => (video.srcObject = stream),
+    err => console.error(err)
+  );
+}
+
+video.addEventListener("playing", () => {
+  const canvas = faceapi.createCanvasFromMedia(video);
+  document.body.append(canvas);
+
+  const displaySize = { width: video.width, height: video.height };
+  faceapi.matchDimensions(canvas, displaySize);
+
+  setInterval(async () => {
+    const detections = await faceapi
+      .detectAllFaces(video, new faceapi.TinyFaceDetectorOptions())
+      // .withFaceLandmarks()
+      // .withFaceExpressions()
+      // .withAgeAndGender();
+      console.log(detections)
+    const resizedDetections = faceapi.resizeResults(detections, displaySize);
+
+    canvas.getContext("2d").clearRect(0, 0, canvas.width, canvas.height);
+
+    faceapi.draw.drawDetections(canvas, resizedDetections);
+    // faceapi.draw.drawFaceLandmarks(canvas, resizedDetections);
+    // faceapi.draw.drawFaceExpressions(canvas, resizedDetections);
+
+    // const age = resizedDetections[0].age;
+    // const interpolatedAge = interpolateAgePredictions(age);
+    // const bottomRight = {
+    //   x: resizedDetections[0].detection.box.bottomRight.x - 50,
+    //   y: resizedDetections[0].detection.box.bottomRight.y
+    // };
+
+    // new faceapi.draw.DrawTextField(
+    //   [`${faceapi.utils.round(interpolatedAge, 0)} years`],
+    //   bottomRight
+    // ).draw(canvas);
+  }, 200);
+});
+
+function interpolateAgePredictions(age) {
+  predictedAges = [age].concat(predictedAges).slice(0, 30);
+  const avgPredictedAge =
+    predictedAges.reduce((total, a) => total + a) / predictedAges.length;
+  return avgPredictedAge;
+}
+
+
+// for zoom in and zoom out.
+{% comment %} navigator.mediaDevices.getUserMedia({video: true})
+.then(async mediaStream => {
+  document.querySelector('video').srcObject = mediaStream;
+
+  // Once crbug.com/711524 is fixed, we won't need to wait anymore. This is
+  // currently needed because capabilities can only be retrieved after the
+  // device starts streaming. This happens after and asynchronously w.r.t.
+  // getUserMedia() returns.
+  await sleep(1000);
+
+  const track = mediaStream.getVideoTracks()[0];
+  const capabilities = track.getCapabilities();
+  const settings = track.getSettings();
+
+  const input = document.querySelector('input[type="range"]');
+
+  // Check whether zoom is supported or not.
+  if (!('zoom' in capabilities)) {
+    return Promise.reject('Zoom is not supported by ' + track.label);
+  }
+
+  // Map zoom to a slider element.
+  input.min = capabilities.zoom.min;
+  input.max = capabilities.zoom.max;
+  input.step = capabilities.zoom.step;
+  input.value = settings.zoom;
+  input.oninput = function(event) {
+    track.applyConstraints({advanced: [ {zoom: event.target.value} ]});
+  }
+  input.hidden = false;
+})
+.catch(error => ChromeSamples.log('Argh!', error.name || error));
+
+/* Utils */
+
+function sleep(ms = 0) {
+  return new Promise(r => setTimeout(r, ms));
+} {% endcomment %}
+
+
+</script>
+</body>
+</html>
